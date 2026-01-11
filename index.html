@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>白银监测 - 2026战略决策系统 V4.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --danger: #e74c3c; --warning: #f1c40f; --safe: #2ecc71; --dark: #2c3e50; --accent: #3498db; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f9; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 1300px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        /* 导航与实时数据 */
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin: 20px 0; }
+        .nav-card { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; text-align: center; }
+        .nav-card a { text-decoration: none; color: var(--accent); font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px; }
+        .nav-card input { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 5px; text-align: center; }
+
+        /* 结果展示 */
+        .result-box { display: flex; justify-content: space-around; margin: 25px 0; background: var(--dark); color: white; padding: 25px; border-radius: 10px; }
+        .res-item { text-align: center; flex: 1; }
+        .res-val { font-size: 28px; font-weight: bold; cursor: help; text-decoration: underline dotted; color: #fff; }
+        .res-predict { margin-top: 8px; font-size: 15px; font-weight: bold; }
+
+        /* 图表 */
+        .chart-container { width: 100%; height: 350px; margin: 20px 0; }
+
+        /* 数据导入 */
+        .import-section { background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px dashed #bbb; margin-top: 20px; }
+        textarea { width: 100%; height: 80px; margin: 10px 0; padding: 10px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        
+        /* 历史表格 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 12px; border: 1px solid #eee; text-align: center; font-size: 14px; }
+        th { background: #f1f2f6; }
+        .status-tag { padding: 4px 10px; border-radius: 4px; font-weight: bold; color: white; font-size: 12px; }
+
+        /* --- 新增板块样式 --- */
+        .new-section { margin-top: 40px; padding: 30px; border-radius: 12px; border: 2px solid #eee; }
+        .contradiction-box { background: #fff5f5; border-left: 10px solid var(--danger); }
+        .secret-box { background: #f0f7ff; border-left: 10px solid var(--accent); }
+        .highlight { color: var(--danger); font-weight: bold; }
+        .formula-card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #d6e4f0; margin: 10px 0; }
+        code { background: #eee; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌪️ 白银监测战情室 V4.0</h1>
+
+    <div class="nav-grid">
+        <div class="nav-card">
+            <a href="https://www.kitco.com/charts/silver" target="_blank">现货 (Spot) 🔗</a>
+            <input type="number" id="spot" value="81.5" oninput="runUpdate()">
+        </div>
+        <div class="nav-card">
+            <a href="https://www.cmegroup.com/markets/metals/precious/silver.html" target="_blank">期货 (SI) 🔗</a>
+            <input type="number" id="future" value="80.98" oninput="runUpdate()">
+        </div>
+        <div class="nav-card">
+            <a href="https://www.kitco.com/charts/silver-lease-rates" target="_blank">租赁率 (%) 🔗</a>
+            <input type="number" id="lease" value="6.8" oninput="runUpdate()">
+        </div>
+        <div class="nav-card">
+            <a href="https://www.lbma.org.uk/prices-and-data/london-vault-data" target="_blank">LBMA库存(M) 🔗</a>
+            <input type="number" id="lbma" value="1185" oninput="runUpdate()">
+        </div>
+        <div class="nav-card">
+            <a href="https://www.ishares.com/us/products/239855/ishares-silver-trust-fund" target="_blank">SLV持仓(M) 🔗</a>
+            <input type="number" id="etf" value="506" oninput="runUpdate()">
+        </div>
+    </div>
+
+    <div class="result-box">
+        <div class="res-item">
+            <div class="label">期现价差 (Basis)</div>
+            <div id="res-spread" class="res-val" title="公式：现货 - 期货。正值表示现货更贵，实物极度紧缺。">--</div>
+            <div id="pre-spread" class="res-predict">--</div>
+        </div>
+        <div class="res-item">
+            <div class="label">挤兑压力比 (SR)</div>
+            <div id="res-ratio" class="res-val" title="公式：((LBMA-ETF)*0.4) / 2.7。反映自由白银对日均支付量的覆盖率。">--</div>
+            <div id="pre-ratio" class="res-predict">--</div>
+        </div>
+        <div class="res-item">
+            <div class="label">租赁利率预判</div>
+            <div id="res-lease-status" class="res-val" title="反映空头借不到货的成本。跳涨即是风暴信号。">--</div>
+            <div id="pre-lease" class="res-predict">--</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="silverChart"></canvas>
+    </div>
+
+    <div class="import-section">
+        <h3>📂 历史数据同步</h3>
+        <textarea id="raw-input" placeholder="粘贴Python数据..."></textarea>
+        <button onclick="importData()" style="padding:10px 20px; background:var(--dark); color:white; border:none; border-radius:5px; cursor:pointer;">解析并更新趋势</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>日期</th><th>现货价格</th><th>压力比</th><th>租赁率</th><th>系统状态</th></tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+    </table>
+
+    <hr style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
+    <div class="new-section contradiction-box">
+        <h2>🎯 抓主要矛盾：如果只看一个指标，看哪个？</h2>
+        <p>根据附件复盘，白银市场的终极主要矛盾是：<span class="highlight">隔夜租赁利率 (T/N Lease Rate)</span>。</p>
+        <ul>
+            <li><strong>为什么？</strong> 租赁利率是白银市场的“体温计”。价格可以被纸面合约操纵，但租赁利率反映的是大行之间**“借不借得到实物”**的真实窘境。</li>
+            <li><strong>如何判定：</strong>
+                <ul>
+                    <li>当租赁利率保持在 <span class="highlight">1%-2%</span>：市场流动性充足，任何价格波动都是噪音。</li>
+                    <li>当租赁利率跳升至 <span class="highlight">10% 以上</span>：系统出现“心绞痛”，挤兑风险爆发。</li>
+                    <li>当租赁利率冲向 <span class="highlight">100%-200%</span>：这是 2025 年 10 月的巅峰状态，意味着现货市场完全停摆，银价将进入必然暴涨通道。</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="new-section secret-box">
+        <h2>💎 道明银行 (TD Bank) 盈利秘诀深度拆解</h2>
+        <p>道明银行之所以能在 2025 年风暴中准确预言，是因为他们掌握了**“支付准备金”**的动态视角。</p>
+        
+        <div class="formula-card">
+            <strong>秘诀 1：自由白银量的“穿透式”算法</strong><br>
+            <code>Free Silver = (Total Inventory - ETF Allocated) × Liquidity Coefficient</code><br>
+            <small>附件逻辑：LBMA 库存中包含大量属于 ETF 的“死银子”，这些不能用于交割。必须扣除 ETF 持仓，再乘以系数（通常为 0.4），得到的才是真正能应对挤兑的“机动力量”。</small>
+        </div>
+
+        <div class="formula-card">
+            <strong>秘诀 2：崩盘临界点公式</strong><br>
+            <code>Squeeze Threshold = Free Silver / Daily Clearing Volume < 0.5</code><br>
+            <small>附件逻辑：当日均清算量（约 2.7 亿盎司）是准备金的两倍时，做市商的信用链条会物理性断裂。此时，任何技术面阻力都无效，价格必须通过暴涨来强行缩减支付需求。</small>
+        </div>
+
+        <div class="formula-card">
+            <strong>秘诀 3：心绞痛观察法</strong><br>
+            <p>道明银行不看“价格跌了没”，而是看**“溢价窗口”**。如果伦敦、纽约、上海三个市场的溢价出现剧烈差异（例如伦敦现货比纽约期货高出 $3），这说明全球实物白银正在进行“跨洋大搬运”，这是挤兑风暴即将在压力最大处爆发的铁证。</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let chart;
+function initChart() {
+    const ctx = document.getElementById('silverChart').getContext('2d');
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: '压力比 (爆点=0.5)', borderColor: '#e74c3c', data: [], yAxisID: 'y' }, { label: '白银价格', borderColor: '#3498db', data: [], yAxisID: 'y1' }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { position: 'left', min: 0, max: 2 }, y1: { position: 'right', grid: { drawOnChartArea: false } } } }
+    });
+}
+
+function runUpdate() {
+    const spot = parseFloat(document.getElementById('spot').value);
+    const future = parseFloat(document.getElementById('future').value);
+    const lease = parseFloat(document.getElementById('lease').value);
+    const lbma = parseFloat(document.getElementById('lbma').value);
+    const etf = parseFloat(document.getElementById('etf').value);
+
+    const spread = (spot - future).toFixed(2);
+    const ratio = (((lbma - etf) * 0.4) / 270).toFixed(2);
+
+    document.getElementById('res-spread').innerText = (spread > 0 ? "+" : "") + spread;
+    document.getElementById('pre-spread').innerText = spread > 0 ? "📈 现货溢价 (强力看涨)" : "📉 贴水消失 (平稳)";
+    document.getElementById('pre-spread').style.color = spread > 0 ? "var(--danger)" : "var(--safe)";
+
+    document.getElementById('res-ratio').innerText = ratio;
+    if (ratio < 0.5) {
+        document.getElementById('pre-ratio').innerText = "🚨 崩盘级挤兑";
+        document.getElementById('pre-ratio').style.color = "var(--danger)";
+    } else if (ratio < 1.0) {
+        document.getElementById('pre-ratio').innerText = "🟡 心绞痛预警";
+        document.getElementById('pre-ratio').style.color = "var(--warning)";
+    } else {
+        document.getElementById('pre-ratio').innerText = "🟢 流动性安全";
+        document.getElementById('pre-ratio').style.color = "var(--safe)";
+    }
+
+    document.getElementById('res-lease-status').innerText = lease + "%";
+    document.getElementById('pre-lease').innerText = lease > 5 ? "⚠️ 预警: 空头借货难" : "✅ 正常";
+    document.getElementById('pre-lease').style.color = lease > 5 ? "var(--danger)" : "var(--safe)";
+}
+
+function importData() {
+    const raw = document.getElementById('raw-input').value.trim();
+    const rows = raw.split('\n');
+    rows.forEach(row => {
+        if (row.includes("日期")) return;
+        const cols = row.split('\t');
+        if (cols.length < 5) return;
+        const date = cols[0], spot = parseFloat(cols[1]), lease = (parseFloat(cols[3])*100).toFixed(1);
+        const ratio = ((((parseFloat(cols[4])/1000000) - (parseFloat(cols[5])/1000000)) * 0.4) / 270).toFixed(2);
+        chart.data.labels.push(date);
+        chart.data.datasets[0].data.push(ratio);
+        chart.data.datasets[1].data.push(spot);
+        const tr = `<tr><td>${date}</td><td>$${spot}</td><td>${ratio}</td><td>${lease}%</td><td><span class="status-tag" style="background:${ratio < 0.5 ? 'var(--danger)' : (ratio < 1.0 ? 'var(--warning)' : 'var(--safe)')}">${ratio < 0.5 ? '爆点' : (ratio < 1.0 ? '预警' : '正常')}</span></td></tr>`;
+        document.getElementById('history-body').innerHTML = tr + document.getElementById('history-body').innerHTML;
+    });
+    chart.update();
+    alert("导入成功！");
+}
+
+window.onload = () => { initChart(); runUpdate(); };
+</script>
+</body>
+</html>
